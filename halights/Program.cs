@@ -2,6 +2,7 @@
 using HADotNet.Core.Clients;
 
 namespace HALights;
+
 class Program
 {
     static async Task Main(string[] args)
