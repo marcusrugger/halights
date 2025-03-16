@@ -9,8 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="HADotNet.Core" Version="1.6.0" />
-    <PackageReference Include="HADotNet.Entities" Version="0.1.2" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>

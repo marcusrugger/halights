@@ -1,4 +1,4 @@
-﻿using HADotNet.Core;
+﻿﻿using HADotNet.Core;
 using HADotNet.Core.Clients;
 
 namespace HALights;
@@ -9,6 +9,14 @@ class Program
     {
         try
         {
+            // Parse command line argument for state filter
+            string? stateFilter = args.Length > 0 ? args[0].ToLower() : null;
+            if (stateFilter != null && stateFilter != "on" && stateFilter != "off")
+            {
+                Console.WriteLine("Error: State filter must be either 'on' or 'off'");
+                return;
+            }
+
             // Read API key from ~/.env file
             string homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             string envFilePath = Path.Combine(homeDir, ".env");
@@ -63,6 +71,13 @@ class Program
                 {
                     var state = await statesClient.GetState(entityId);
                     
+                    // Skip if state doesn't match filter
+                    string currentState = state.State.ToString().ToLower();
+                    if (stateFilter != null && currentState != stateFilter)
+                    {
+                        continue;
+                    }
+
                     // Try to extract friendly name from attributes
                     string? friendlyName = null;
                     try
@@ -92,11 +107,21 @@ class Program
                     
                     lightStates.Add((entityId, state, friendlyName));
                 }
+
+                if (!lightStates.Any())
+                {
+                    Console.WriteLine($"No lights found in '{stateFilter}' state");
+                    return;
+                }
                 
                 // Display all lights with current states
                 Console.Clear();
                 Console.WriteLine("Home Assistant Lights Control");
                 Console.WriteLine("============================");
+                if (stateFilter != null)
+                {
+                    Console.WriteLine($"Showing lights that are {stateFilter.ToUpper()}");
+                }
                 Console.WriteLine();
                 
                 // Find the maximum length of the friendly names for proper alignment
@@ -104,15 +129,41 @@ class Program
                 // Calculate the width needed for the number column based on the number of lights
                 int numberWidth = lightStates.Count.ToString().Length;
                 
-                // Create a format string for consistent display
-                string listFormat = $"{{0,{numberWidth}}}. {{1,-{maxNameLength}}}  {{2}}";
+                // Create format string parts for consistent display
+                string numberFormat = $"{{0,{numberWidth}}}.";
+                string nameFormat = $"{{1,-{maxNameLength}}}";
+                string statusFormat = "{2}";
+                
+                // Combine the parts to create the complete format string
+                string listFormat = $"{numberFormat} {nameFormat}  {statusFormat}";
                 
                 for (int i = 0; i < lightStates.Count; i++)
                 {
                     var (entityId, state, friendlyName) = lightStates[i];
                     
                     string status = state.State.ToString().Equals("on", StringComparison.OrdinalIgnoreCase) ? "ON" : "OFF";
-                    Console.WriteLine(string.Format(listFormat, (i + 1), friendlyName, status));
+                    
+                    // If the light is ON, print with colors
+                    if (status == "ON")
+                    {
+                        // Number in red
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write(string.Format(numberFormat, (i + 1)));
+                        
+                        // Name in blue
+                        Console.ForegroundColor = ConsoleColor.Blue;
+                        Console.Write(string.Format($" {{0,-{maxNameLength}}}  ", friendlyName));
+                        
+                        // Status in green
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine(status);
+                        
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        Console.WriteLine(string.Format(listFormat, (i + 1), friendlyName, status));
+                    }
                 }
                 
                 Console.WriteLine();
